@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mepfil 제품 수량 대시보드</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f4f4f2;
+    --bg-tertiary: #eeede9;
+    --text-primary: #1a1a18;
+    --text-secondary: #6b6b67;
+    --border-light: rgba(0,0,0,0.10);
+    --border-mid: rgba(0,0,0,0.18);
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-primary: #1c1c1a;
+      --bg-secondary: #262623;
+      --bg-tertiary: #2e2e2b;
+      --text-primary: #f0efe9;
+      --text-secondary: #9a9a94;
+      --border-light: rgba(255,255,255,0.10);
+      --border-mid: rgba(255,255,255,0.18);
+    }
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .page { max-width: 1100px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+  .header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    flex-wrap: wrap; gap: 16px; margin-bottom: 2rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 0.5px solid var(--border-light);
+  }
+  .header-left h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; }
+  .header-left p { font-size: 13px; color: var(--text-secondary); margin-top: 3px; }
+  .controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .controls select, .controls button {
+    font-size: 13px; padding: 7px 12px;
+    border-radius: var(--radius-md);
+    border: 0.5px solid var(--border-mid);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+    outline: none;
+  }
+  .controls select:hover, .controls button:hover { background: var(--bg-secondary); }
+  .btn-edit {
+    background: #185FA5 !important; color: white !important;
+    border-color: transparent !important; font-weight: 500;
+  }
+  .btn-edit:hover { background: #0C447C !important; }
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px; margin-bottom: 1.5rem;
+  }
+  .metric {
+    background: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    border: 0.5px solid var(--border-light);
+    padding: 16px 18px;
+  }
+  .metric-label { font-size: 11px; color: var(--text-secondary); letter-spacing: 0.04em; margin-bottom: 6px; text-transform: uppercase; }
+  .metric-value { font-size: 24px; font-weight: 600; color: var(--text-primary); line-height: 1.1; }
+  .metric-sub { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  @media (max-width: 640px) { .charts-row { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    border: 0.5px solid var(--border-light);
+    padding: 18px 20px;
+  }
+  .card-title { font-size: 13px; font-weight: 500; color: var(--text-primary); margin-bottom: 14px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-secondary); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .table-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+  .search-box {
+    font-size: 12px; padding: 6px 12px;
+    border-radius: var(--radius-md);
+    border: 0.5px solid var(--border-mid);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    width: 200px; outline: none;
+  }
+  .search-box:focus { border-color: #378ADD; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead th {
+    font-size: 11px; font-weight: 500; color: var(--text-secondary);
+    border-bottom: 0.5px solid var(--border-mid);
+    padding: 7px 10px; text-align: left;
+    white-space: nowrap;
+  }
+  tbody td { padding: 7px 10px; border-bottom: 0.5px solid var(--border-light); }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--bg-secondary); }
+  .badge {
+    display: inline-block; font-size: 10px; padding: 2px 8px;
+    border-radius: 999px; font-weight: 500; white-space: nowrap;
+  }
+  .b-blue   { background: #E6F1FB; color: #0C447C; }
+  .b-teal   { background: #E1F5EE; color: #085041; }
+  .b-coral  { background: #FAECE7; color: #712B13; }
+  .b-purple { background: #EEEDFE; color: #3C3489; }
+  .b-amber  { background: #FAEEDA; color: #633806; }
+  .b-pink   { background: #FBEAF0; color: #72243E; }
+  .b-green  { background: #EAF3DE; color: #27500A; }
+  @media (prefers-color-scheme: dark) {
+    .b-blue   { background: #0C447C; color: #B5D4F4; }
+    .b-teal   { background: #085041; color: #9FE1CB; }
+    .b-coral  { background: #712B13; color: #F5C4B3; }
+    .b-purple { background: #3C3489; color: #CECBF6; }
+    .b-amber  { background: #633806; color: #FAC775; }
+    .b-pink   { background: #72243E; color: #F4C0D1; }
+    .b-green  { background: #27500A; color: #C0DD97; }
+  }
+  .bar-inline { display: flex; align-items: center; gap: 6px; }
+  .bar-track { flex: 1; height: 4px; background: var(--bg-tertiary); border-radius: 2px; overflow: hidden; min-width: 60px; }
+  .bar-fill  { height: 100%; border-radius: 2px; }
+  .pct { font-size: 10px; color: var(--text-secondary); min-width: 34px; text-align: right; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; font-size: 12px; }
+
+  /* Modal */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45); z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--bg-primary);
+    border-radius: var(--radius-xl);
+    border: 0.5px solid var(--border-mid);
+    padding: 24px 24px 20px;
+    width: 480px; max-width: 94vw;
+    max-height: 82vh; overflow-y: auto;
+  }
+  .modal h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .modal-subtitle { font-size: 12px; color: var(--text-secondary); margin-bottom: 16px; }
+  .modal-row {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    padding: 6px 0; gap: 12px;
+    border-bottom: 0.5px solid var(--border-light);
+  }
+  .modal-row:last-of-type { border-bottom: none; }
+  .modal-label { font-size: 12px; color: var(--text-secondary); flex: 1; }
+  .modal-input {
+    font-size: 12px; padding: 5px 9px;
+    border: 0.5px solid var(--border-mid);
+    border-radius: var(--radius-md);
+    width: 130px; text-align: right;
+    background: var(--bg-secondary);
+    color: var(--text-primary); outline: none;
+  }
+  .modal-input:focus { border-color: #378ADD; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+  .btn-cancel {
+    font-size: 13px; padding: 8px 18px;
+    border-radius: var(--radius-md);
+    border: 0.5px solid var(--border-mid);
+    background: transparent; color: var(--text-primary); cursor: pointer;
+  }
+  .btn-save {
+    font-size: 13px; padding: 8px 18px;
+    border-radius: var(--radius-md);
+    border: none; background: #185FA5; color: #fff; cursor: pointer; font-weight: 500;
+  }
+  .btn-save:hover { background: #0C447C; }
+  .footer { text-align: center; font-size: 11px; color: var(--text-secondary); margin-top: 3rem; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="header">
+    <div class="header-left">
+      <h1>Mepfil 제품 수량 대시보드</h1>
+      <p id="period-label">로딩 중...</p>
+    </div>
+    <div class="controls">
+      <select id="year-sel">
+        <option>2023</option><option>2024</option>
+        <option selected>2025</option><option>2026</option>
+      </select>
+      <select id="month-sel">
+        <option value="1">1월</option><option value="2">2월</option>
+        <option value="3">3월</option><option value="4">4월</option>
+        <option value="5">5월</option><option value="6">6월</option>
+        <option value="7">7월</option><option value="8">8월</option>
+        <option value="9">9월</option><option value="10">10월</option>
+        <option value="11">11월</option><option value="12">12월</option>
+      </select>
+      <button class="btn-edit" onclick="openModal()">+ 데이터 편집</button>
+    </div>
+  </header>
+
+  <div class="metrics" id="metrics"></div>
+
+  <div class="charts-row">
+    <div class="card">
+      <div class="card-title">제품 시리즈별 수량 비중</div>
+      <div class="legend" id="pie-legend"></div>
+      <div style="position:relative;height:220px;">
+        <canvas id="pieChart" role="img" aria-label="제품 시리즈별 수량 비율 도넛 차트">제품 시리즈별 수량 분포</canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">시리즈별 총 수량 비교</div>
+      <div style="position:relative;" id="bar-wrap">
+        <canvas id="barChart" role="img" aria-label="시리즈별 총 수량 비교 막대 차트">시리즈별 수량 비교</canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px;">
+    <div class="card-title">USP 규격별 수량 분포 (전체 제품 합산)</div>
+    <div style="position:relative;height:210px;">
+      <canvas id="uspChart" role="img" aria-label="USP 규격별 수량 분포 막대 차트">USP 규격별 수량</canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-controls">
+      <span class="card-title" style="margin-bottom:0">전체 제품 목록</span>
+      <input class="search-box" id="search" placeholder="제품명 검색..." oninput="renderTable()">
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>제품명</th>
+            <th>시리즈</th>
+            <th>USP 규격</th>
+            <th style="text-align:right">수량</th>
+            <th style="min-width:140px">전체 비율</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">Mepfil Product Dashboard · 데이터는 브라우저에 저장됩니다</div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h3 id="modal-title">수량 데이터 편집</h3>
+    <p class="modal-subtitle" id="modal-subtitle"></p>
+    <div id="modal-rows"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">취소</button>
+      <button class="btn-save" onclick="saveModal()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DEFAULT_DATA = [
+  ["Mepfil II","USP 0",373000],["Mepfil II","USP 1",664000],["Mepfil II","USP 2",193500],
+  ["Mepfil II","USP 2-0",988000],["Mepfil II","USP 3&4",5000],["Mepfil II","USP 3-0",471000],
+  ["Mepfil II","USP 4-0",130000],["Mepfil II","USP 5-0",48500],["Mepfil II","USP 6-0",38000],
+  ["Mepfil","USP 0",1863000],["Mepfil","USP 1",2931000],["Mepfil","USP 2",1757250],
+  ["Mepfil","USP 2-0",3074500],["Mepfil","USP 3&4",318000],["Mepfil","USP 3-0",2749000],
+  ["Mepfil","USP 4-0",2243000],["Mepfil","USP 5",46900],["Mepfil","USP 5-0",685000],
+  ["Mepfil","USP 6",50750],["Mepfil","USP 6-0",191000],["Mepfil","USP 7-0",42000],["Mepfil","USP 8-0",41000],
+  ["Mepfil-Lac Plus","USP 0",452000],["Mepfil-Lac Plus","USP 1",161500],["Mepfil-Lac Plus","USP 2",89500],
+  ["Mepfil-Lac Plus","USP 2-0",328000],["Mepfil-Lac Plus","USP 3-0",622500],["Mepfil-Lac Plus","USP 4-0",508000],
+  ["Mepfil-Lac Quick","USP 0",42500],["Mepfil-Lac Quick","USP 1",94500],["Mepfil-Lac Quick","USP 2",11500],
+  ["Mepfil-Lac Quick","USP 2-0",148000],["Mepfil-Lac Quick","USP 3-0",209000],["Mepfil-Lac Quick","USP 4-0",165500],
+  ["Mepfil-Lac Quick","USP 5-0",58500],["Mepfil-Lac Quick","USP 6-0",25500],
+  ["Mepfil-Lac","USP 0",1468000],["Mepfil-Lac","USP 1",2749000],["Mepfil-Lac","USP 2",811750],
+  ["Mepfil-Lac","USP 2-0",1677000],["Mepfil-Lac","USP 3&4",28000],["Mepfil-Lac","USP 3-0",1089000],
+  ["Mepfil-Lac","USP 4-0",764000],["Mepfil-Lac","USP 5",22050],["Mepfil-Lac","USP 5-0",243000],
+  ["Mepfil-Lac","USP 6",10500],["Mepfil-Lac","USP 6-0",108000],["Mepfil-Lac","USP 7-0",1600],["Mepfil-Lac","USP 8-0",14400],
+  ["Mepfil-MO","USP 0",14750],["Mepfil-MO","USP 1",5000],["Mepfil-MO","USP 2",3500],
+  ["Mepfil-MO","USP 2-0",17750],["Mepfil-MO","USP 3-0",131000],["Mepfil-MO","USP 4-0",89750],
+  ["Mepfil-MO","USP 5-0",43500],["Mepfil-MO","USP 6-0",36250],
+  ["Mepfil-Quick","USP 0",58500],["Mepfil-Quick","USP 1",25000],["Mepfil-Quick","USP 2",9000],
+  ["Mepfil-Quick","USP 2-0",53000],["Mepfil-Quick","USP 3-0",91000],["Mepfil-Quick","USP 4-0",122000],
+  ["Mepfil-Quick","USP 5-0",45500],["Mepfil-Quick","USP 6-0",26250]
+];
+
+const SERIES_COLORS = {
+  "Mepfil":           "#378ADD",
+  "Mepfil II":        "#1D9E75",
+  "Mepfil-Lac":       "#D85A30",
+  "Mepfil-Lac Plus":  "#7F77DD",
+  "Mepfil-Lac Quick": "#BA7517",
+  "Mepfil-MO":        "#D4537E",
+  "Mepfil-Quick":     "#639922"
+};
+const BADGE = {
+  "Mepfil": "b-blue", "Mepfil II": "b-teal", "Mepfil-Lac": "b-coral",
+  "Mepfil-Lac Plus": "b-purple", "Mepfil-Lac Quick": "b-amber",
+  "Mepfil-MO": "b-pink", "Mepfil-Quick": "b-green"
+};
+const USP_ORDER = ["USP 0","USP 1","USP 2","USP 2-0","USP 3&4","USP 3-0","USP 4-0","USP 5","USP 5-0","USP 6","USP 6-0","USP 7-0","USP 8-0"];
+const STORAGE_KEY = "mepfil_v1_";
+
+let pieInst, barInst, uspInst;
+
+function getKey() {
+  return STORAGE_KEY + document.getElementById('year-sel').value + '_' + document.getElementById('month-sel').value;
+}
+function loadData() {
+  const s = localStorage.getItem(getKey());
+  return s ? JSON.parse(s) : DEFAULT_DATA.map(r => [...r]);
+}
+function saveData(d) { localStorage.setItem(getKey(), JSON.stringify(d)); }
+
+let data = loadData();
+
+const fmt = n => Number(n).toLocaleString('ko-KR');
+const fmtM = n => (n / 1000000).toFixed(2) + 'M';
+
+function seriesMap(d) {
+  const m = {};
+  d.forEach(([s,,q]) => { m[s] = (m[s] || 0) + q; });
+  return m;
+}
+function uspMap(d) {
+  const m = {};
+  d.forEach(([,u,q]) => { m[u] = (m[u] || 0) + q; });
+  return m;
+}
+
+function renderMetrics() {
+  const total = data.reduce((s, [,,q]) => s + q, 0);
+  const sm = seriesMap(data);
+  const top = Object.entries(sm).sort((a,b) => b[1]-a[1])[0];
+  const um = uspMap(data);
+  const topU = Object.entries(um).sort((a,b) => b[1]-a[1])[0];
+  document.getElementById('metrics').innerHTML = `
+    <div class="metric"><div class="metric-label">총 수량</div><div class="metric-value">${fmtM(total)}</div><div class="metric-sub">${fmt(total)} 개</div></div>
+    <div class="metric"><div class="metric-label">제품 시리즈</div><div class="metric-value">${Object.keys(sm).length}</div><div class="metric-sub">개 시리즈</div></div>
+    <div class="metric"><div class="metric-label">총 SKU</div><div class="metric-value">${data.length}</div><div class="metric-sub">개 품목</div></div>
+    <div class="metric"><div class="metric-label">최다 시리즈</div><div class="metric-value" style="font-size:16px;letter-spacing:-0.3px">${top[0]}</div><div class="metric-sub">${fmt(top[1])}</div></div>
+    <div class="metric"><div class="metric-label">최다 USP</div><div class="metric-value" style="font-size:18px">${topU[0]}</div><div class="metric-sub">${fmt(topU[1])}</div></div>
+  `;
+}
+
+function renderPie() {
+  const sm = seriesMap(data);
+  const labels = Object.keys(sm);
+  const vals = labels.map(l => sm[l]);
+  const colors = labels.map(l => SERIES_COLORS[l] || '#888');
+  const total = vals.reduce((a,b) => a+b, 0);
+  document.getElementById('pie-legend').innerHTML = labels.map((l,i) =>
+    `<div class="legend-item"><div class="legend-dot" style="background:${colors[i]}"></div>${l} ${Math.round(vals[i]/total*100)}%</div>`
+  ).join('');
+  if (pieInst) pieInst.destroy();
+  pieInst = new Chart(document.getElementById('pieChart'), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: vals, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '62%',
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => ` ${c.label}: ${fmt(c.raw)}` } }
+      }
+    }
+  });
+}
+
+function renderBar() {
+  const sm = seriesMap(data);
+  const sorted = Object.entries(sm).sort((a,b) => b[1]-a[1]);
+  const labels = sorted.map(e => e[0]);
+  const vals = sorted.map(e => e[1]);
+  const colors = labels.map(l => SERIES_COLORS[l] || '#888');
+  const h = Math.max(240, labels.length * 38 + 50);
+  document.getElementById('bar-wrap').style.height = h + 'px';
+  if (barInst) barInst.destroy();
+  barInst = new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: { labels, datasets: [{ data: vals, backgroundColor: colors, borderRadius: 4, borderSkipped: false }] },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${fmt(c.raw)}` } } },
+      scales: {
+        x: { ticks: { callback: v => (v/1000000).toFixed(1)+'M', font: { size: 10 } }, grid: { color: 'rgba(128,128,128,0.08)' } },
+        y: { ticks: { font: { size: 11 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderUSP() {
+  const um = uspMap(data);
+  const labels = USP_ORDER.filter(u => um[u]);
+  const vals = labels.map(u => um[u]);
+  if (uspInst) uspInst.destroy();
+  uspInst = new Chart(document.getElementById('uspChart'), {
+    type: 'bar',
+    data: { labels, datasets: [{ data: vals, backgroundColor: '#378ADD', borderRadius: 3 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${fmt(c.raw)}` } } },
+      scales: {
+        x: { ticks: { font: { size: 10 }, autoSkip: false, maxRotation: 0 }, grid: { display: false } },
+        y: { ticks: { callback: v => (v/1000000).toFixed(1)+'M', font: { size: 10 } }, grid: { color: 'rgba(128,128,128,0.08)' } }
+      }
+    }
+  });
+}
+
+function renderTable() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const total = data.reduce((s,[,,v]) => s+v, 0);
+  const filtered = data.filter(([s,u]) => (s+' '+u).toLowerCase().includes(q));
+  filtered.sort((a,b) => b[2]-a[2]);
+  document.getElementById('table-body').innerHTML = filtered.map(([s,u,v]) => {
+    const pct = (v/total*100).toFixed(1);
+    const w = Math.round(v/total*100);
+    return `<tr>
+      <td style="font-weight:500">${s} ${u}</td>
+      <td><span class="badge ${BADGE[s]||'b-blue'}">${s}</span></td>
+      <td style="color:var(--text-secondary)">${u}</td>
+      <td class="num">${fmt(v)}</td>
+      <td><div class="bar-inline"><div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${SERIES_COLORS[s]||'#888'}"></div></div><span class="pct">${pct}%</span></div></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderAll() {
+  data = loadData();
+  const y = document.getElementById('year-sel').value;
+  const m = document.getElementById('month-sel').value;
+  document.getElementById('period-label').textContent = `${y}년 ${m}월 기준 데이터`;
+  renderMetrics(); renderPie(); renderBar(); renderUSP(); renderTable();
+}
+
+function openModal() {
+  const y = document.getElementById('year-sel').value;
+  const m = document.getElementById('month-sel').value;
+  document.getElementById('modal-title').textContent = `수량 데이터 편집`;
+  document.getElementById('modal-subtitle').textContent = `${y}년 ${m}월 — 각 제품의 수량을 수정하세요`;
+  document.getElementById('modal-rows').innerHTML = data.map(([s,u,v],i) => `
+    <div class="modal-row">
+      <span class="modal-label">${s} ${u}</span>
+      <input class="modal-input" type="number" data-idx="${i}" value="${v}" min="0">
+    </div>`).join('');
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+function saveModal() {
+  document.querySelectorAll('.modal-input').forEach(inp => {
+    data[parseInt(inp.dataset.idx)][2] = parseInt(inp.value) || 0;
+  });
+  saveData(data);
+  closeModal();
+  renderAll();
+}
+
+document.getElementById('year-sel').onchange = renderAll;
+document.getElementById('month-sel').onchange = renderAll;
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+renderAll();
+</script>
+</body>
+</html>
