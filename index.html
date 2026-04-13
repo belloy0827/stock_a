@@ -76,12 +76,11 @@ const COLORS={SM:'#185FA5',CM:'#1D9E75',DM:'#D85A30',MD:'#7F77DD'};
 const DASHES={SM:[],CM:[],DM:[5,3],MD:[2,2]};
 const MONTHS=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 
-let data={
-  SM:[{v:19,g:19},{v:15,g:15},{v:20,g:20},null,null,null,null,null,null,null,null,null],
-  CM:[{v:19,g:19},{v:17,g:15},{v:22,g:22},null,null,null,null,null,null,null,null,null],
-  DM:[{v:19,g:19},{v:6,g:6},{v:20,g:20},null,null,null,null,null,null,null,null,null],
-  MD:[{v:20,g:19},{v:18,g:18},{v:22,g:22},null,null,null,null,null,null,null,null,null]
-};
+let data = { SM:[...Array(12)].map(()=>null), CM:[...Array(12)].map(()=>null), DM:[...Array(12)].map(()=>null), MD:[...Array(12)].map(()=>null) };
+
+fetch('data.json')
+  .then(r => r.json())
+  .then(json => { data = json; renderAll(); });
 
 function mAcc(t,i){const d=data[t][i];if(!d||!d.v)return null;return d.g/d.v*100;}
 
