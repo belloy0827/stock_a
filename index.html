@@ -1,0 +1,382 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); }
+.dash { padding: 20px; max-width: 1400px; }
+.section-title { font-size: 13px; font-weight: 500; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 10px; margin-bottom: 24px; }
+.kpi-card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 14px 16px; }
+.kpi-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 6px; }
+.kpi-value { font-size: 22px; font-weight: 500; color: var(--color-text-primary); }
+.kpi-sub { font-size: 11px; color: var(--color-text-tertiary); margin-top: 4px; }
+.kpi-bar-bg { height: 4px; background: var(--color-background-tertiary); border-radius: 2px; margin-top: 8px; }
+.kpi-bar-fill { height: 4px; border-radius: 2px; }
+.card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 16px; margin-bottom: 16px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.tbl th { background: var(--color-background-secondary); color: var(--color-text-secondary); font-weight: 500; padding: 8px 10px; text-align: center; border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 11px; }
+.tbl td { padding: 7px 10px; text-align: center; border-bottom: 0.5px solid var(--color-border-tertiary); color: var(--color-text-primary); font-size: 12px; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl td.month { text-align: left; font-weight: 500; color: var(--color-text-secondary); }
+.tbl td.good { color: #1D9E75; font-weight: 500; }
+.tbl td.warn { color: #BA7517; font-weight: 500; }
+.tbl td.team-hd { background: var(--color-background-secondary); font-weight: 500; font-size: 11px; }
+.badge-sm { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+.badge-green { background: #EAF3DE; color: #3B6D11; }
+.badge-amber { background: #FAEEDA; color: #854F0B; }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 24px; width: 500px; max-width: 95vw; }
+.modal-title { font-size: 15px; font-weight: 500; margin-bottom: 16px; color: var(--color-text-primary); }
+.modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.field-group label { font-size: 11px; color: var(--color-text-secondary); display: block; margin-bottom: 4px; }
+.field-group input { width: 100%; padding: 6px 10px; font-size: 13px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: var(--color-background-primary); color: var(--color-text-primary); }
+.btn-row { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+.btn { padding: 7px 16px; border-radius: var(--border-radius-md); font-size: 13px; cursor: pointer; border: 0.5px solid var(--color-border-secondary); background: var(--color-background-primary); color: var(--color-text-primary); }
+.btn-primary { background: #185FA5; color: #fff; border-color: #185FA5; }
+.tab-row { display: flex; gap: 0; margin-bottom: 12px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.tab { padding: 8px 16px; font-size: 12px; cursor: pointer; color: var(--color-text-secondary); border-bottom: 2px solid transparent; margin-bottom: -0.5px; }
+.tab.active { color: #185FA5; border-bottom-color: #185FA5; font-weight: 500; }
+</style>
+
+<div class="dash">
+<h2 class="sr-only">재고정확도 현황 대시보드 — SM, CM, DM, MD 4개 팀의 월별 재고정확도 및 목표 달성률을 보여줍니다.</h2>
+
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+  <div>
+    <div style="font-size:18px; font-weight:500; color:var(--color-text-primary);">재고정확도 현황 대시보드</div>
+    <div style="font-size:12px; color:var(--color-text-secondary); margin-top:2px;">2025년 기준 · 매월 데이터 업데이트 가능</div>
+  </div>
+  <button class="btn btn-primary" onclick="openModal()">+ 데이터 입력</button>
+</div>
+
+<div class="section-title">팀별 KPI — 누적 재고정확도</div>
+<div class="kpi-grid" id="kpi-grid"></div>
+
+<div class="tab-row">
+  <div class="tab active" onclick="switchTab('monthly', this)">월별 현황</div>
+  <div class="tab" onclick="switchTab('cumul', this)">누적 현황</div>
+</div>
+
+<div id="tab-monthly">
+  <div class="grid2">
+    <div class="card">
+      <div style="font-size:13px; font-weight:500; color:var(--color-text-primary); margin-bottom:12px;">월별 팀별 재고정확도 추이</div>
+      <div style="position:relative; height:240px;"><canvas id="chartMonthly" role="img" aria-label="월별 팀별 재고정확도 꺾은선 차트">SM, CM, DM, MD 팀의 월별 재고정확도 추이</canvas></div>
+      <div id="legend-monthly" style="display:flex; flex-wrap:wrap; gap:12px; margin-top:10px; font-size:11px; color:var(--color-text-secondary);"></div>
+    </div>
+    <div class="card">
+      <div style="font-size:13px; font-weight:500; color:var(--color-text-primary); margin-bottom:12px;">월별 팀별 상세 현황</div>
+      <div style="overflow-x:auto;"><table class="tbl" id="tbl-monthly"></table></div>
+    </div>
+  </div>
+</div>
+
+<div id="tab-cumul" style="display:none;">
+  <div class="grid2">
+    <div class="card">
+      <div style="font-size:13px; font-weight:500; color:var(--color-text-primary); margin-bottom:12px;">누적 재고정확도 추이</div>
+      <div style="position:relative; height:240px;"><canvas id="chartCumul" role="img" aria-label="누적 팀별 재고정확도 꺾은선 차트">SM, CM, DM, MD 팀의 누적 재고정확도 추이</canvas></div>
+      <div id="legend-cumul" style="display:flex; flex-wrap:wrap; gap:12px; margin-top:10px; font-size:11px; color:var(--color-text-secondary);"></div>
+    </div>
+    <div class="card">
+      <div style="font-size:13px; font-weight:500; color:var(--color-text-primary); margin-bottom:12px;">누적 팀별 상세 현황</div>
+      <div style="overflow-x:auto;"><table class="tbl" id="tbl-cumul"></table></div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">월별 데이터 입력</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
+      <div class="field-group">
+        <label>월 선택</label>
+        <select id="inp-month" style="width:100%; padding:6px 10px; font-size:13px; border:0.5px solid var(--color-border-secondary); border-radius:var(--border-radius-md); background:var(--color-background-primary); color:var(--color-text-primary);">
+          <option value="0">1월</option><option value="1">2월</option><option value="2">3월</option>
+          <option value="3">4월</option><option value="4">5월</option><option value="5">6월</option>
+          <option value="6">7월</option><option value="7">8월</option><option value="8">9월</option>
+          <option value="9">10월</option><option value="10">11월</option><option value="11">12월</option>
+        </select>
+      </div>
+      <div></div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px;">
+      <div style="font-size:11px; font-weight:500; color:var(--color-text-secondary); text-align:center; padding:6px 0;">팀</div>
+      <div style="font-size:11px; font-weight:500; color:var(--color-text-secondary); text-align:center; padding:6px 0;">검증 품목수</div>
+      <div style="font-size:11px; font-weight:500; color:var(--color-text-secondary); text-align:center; padding:6px 0;">양호 품목수</div>
+      <div style="font-size:11px; font-weight:500; color:var(--color-text-secondary); text-align:center; padding:6px 0;">목표(%)</div>
+    </div>
+    <div id="modal-team-rows"></div>
+    <div class="btn-row">
+      <button class="btn" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveModal()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const TEAMS = ['SM', 'CM', 'DM', 'MD'];
+const TARGETS = { SM: 98.8, CM: 98.1, DM: 96.2, MD: 92.2 };
+const COLORS = { SM: '#185FA5', CM: '#1D9E75', DM: '#D85A30', MD: '#9333EA' };
+const MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+let data = {
+  SM: [{verified:19,good:19},{verified:15,good:15},{verified:20,good:20},null,null,null,null,null,null,null,null,null],
+  CM: [{verified:19,good:19},{verified:17,good:15},{verified:22,good:22},null,null,null,null,null,null,null,null,null],
+  DM: [{verified:19,good:19},{verified:6,good:6},{verified:20,good:20},null,null,null,null,null,null,null,null,null],
+  MD: [{verified:20,good:19},{verified:18,good:18},{verified:22,good:22},null,null,null,null,null,null,null,null,null]
+};
+
+function acc(team, mi) {
+  const d = data[team][mi];
+  if (!d || d.verified === 0) return null;
+  return (d.good / d.verified) * 100;
+}
+
+function cumulAcc(team, upToMi) {
+  let tv = 0, tg = 0;
+  for (let i = 0; i <= upToMi; i++) {
+    const d = data[team][i];
+    if (d) { tv += d.verified; tg += d.good; }
+  }
+  return tv === 0 ? null : (tg / tv) * 100;
+}
+
+function companyAcc(mi) {
+  let tv = 0, tg = 0;
+  TEAMS.forEach(t => { const d = data[t][mi]; if (d) { tv += d.verified; tg += d.good; } });
+  return tv === 0 ? null : (tg / tv) * 100;
+}
+
+function companyCumulAcc(upToMi) {
+  let tv = 0, tg = 0;
+  TEAMS.forEach(t => {
+    for (let i = 0; i <= upToMi; i++) {
+      const d = data[t][i];
+      if (d) { tv += d.verified; tg += d.good; }
+    }
+  });
+  return tv === 0 ? null : (tg / tv) * 100;
+}
+
+function lastFilledMonth() {
+  let last = -1;
+  for (let i = 0; i < 12; i++) {
+    if (TEAMS.every(t => data[t][i] !== null)) last = i;
+    else break;
+  }
+  return last;
+}
+
+function renderKPI() {
+  const lm = lastFilledMonth();
+  const grid = document.getElementById('kpi-grid');
+  grid.innerHTML = '';
+  TEAMS.forEach(t => {
+    const ca = lm >= 0 ? cumulAcc(t, lm) : null;
+    const tgt = TARGETS[t];
+    const pct = ca !== null ? (ca / tgt * 100) : 0;
+    const ok = ca !== null && ca >= tgt;
+    grid.innerHTML += `
+    <div class="kpi-card">
+      <div class="kpi-label">${t}생산 재고정확도</div>
+      <div class="kpi-value" style="color:${ok?'#1D9E75':'#D85A30'}">${ca !== null ? ca.toFixed(1)+'%' : '—'}</div>
+      <div class="kpi-sub">목표 ${tgt}% · 달성율 ${ca !== null ? (ca/tgt*100).toFixed(1)+'%' : '—'}</div>
+      <div class="kpi-bar-bg"><div class="kpi-bar-fill" style="width:${Math.min(pct,100)}%; background:${ok?'#1D9E75':'#D85A30'}"></div></div>
+    </div>`;
+  });
+  const ca = lm >= 0 ? companyCumulAcc(lm) : null;
+  const avgTgt = TEAMS.reduce((s,t)=>s+TARGETS[t],0)/TEAMS.length;
+  grid.innerHTML += `
+  <div class="kpi-card" style="border-color:#185FA5;">
+    <div class="kpi-label">전사 재고정확도</div>
+    <div class="kpi-value" style="color:#185FA5">${ca !== null ? ca.toFixed(1)+'%' : '—'}</div>
+    <div class="kpi-sub">평균목표 ${avgTgt.toFixed(1)}% · ${lm >= 0 ? (lm+1)+'월 누적' : '데이터 없음'}</div>
+    <div class="kpi-bar-bg"><div class="kpi-bar-fill" style="width:${ca!==null?Math.min(ca/avgTgt*100,100):0}%; background:#185FA5"></div></div>
+  </div>`;
+}
+
+let chartMonthly = null, chartCumul = null;
+
+function filledMonths() {
+  let months = [];
+  for (let i = 0; i < 12; i++) {
+    if (TEAMS.some(t => data[t][i] !== null)) months.push(i);
+  }
+  return months;
+}
+
+function renderMonthlyChart() {
+  const fm = filledMonths();
+  const labels = fm.map(i => MONTHS[i]);
+  const datasets = TEAMS.map(t => ({
+    label: t,
+    data: fm.map(i => { const a = acc(t,i); return a !== null ? parseFloat(a.toFixed(2)) : null; }),
+    borderColor: COLORS[t], backgroundColor: COLORS[t], pointRadius: 4, tension: 0.3, fill: false,
+    borderDash: t === 'DM' ? [5,3] : t === 'MD' ? [2,2] : []
+  }));
+  const ctx = document.getElementById('chartMonthly');
+  if (chartMonthly) chartMonthly.destroy();
+  chartMonthly = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y !== null ? ctx.parsed.y.toFixed(1)+'%' : '—'}` } } },
+      scales: {
+        y: { min: 85, max: 105, ticks: { callback: v => v+'%', font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.1)' } },
+        x: { ticks: { font: { size: 11 }, autoSkip: false } }
+      }
+    }
+  });
+  const leg = document.getElementById('legend-monthly');
+  leg.innerHTML = TEAMS.map(t=>`<span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:${COLORS[t]}"></span>${t} (목표${TARGETS[t]}%)</span>`).join('');
+}
+
+function renderCumulChart() {
+  const fm = filledMonths();
+  const labels = fm.map(i => MONTHS[i]);
+  const datasets = TEAMS.map(t => ({
+    label: t,
+    data: fm.map(i => { const a = cumulAcc(t,i); return a !== null ? parseFloat(a.toFixed(2)) : null; }),
+    borderColor: COLORS[t], backgroundColor: COLORS[t], pointRadius: 4, tension: 0.3, fill: false,
+    borderDash: t === 'DM' ? [5,3] : t === 'MD' ? [2,2] : []
+  }));
+  const ctx = document.getElementById('chartCumul');
+  if (chartCumul) chartCumul.destroy();
+  chartCumul = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y !== null ? ctx.parsed.y.toFixed(1)+'%' : '—'}` } } },
+      scales: {
+        y: { min: 85, max: 115, ticks: { callback: v => v+'%', font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.1)' } },
+        x: { ticks: { font: { size: 11 }, autoSkip: false } }
+      }
+    }
+  });
+  const leg = document.getElementById('legend-cumul');
+  leg.innerHTML = TEAMS.map(t=>`<span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:${COLORS[t]}"></span>${t}</span>`).join('');
+}
+
+function badgeAch(ach) {
+  if (ach === null) return '<span style="color:var(--color-text-tertiary)">—</span>';
+  const ok = ach >= 100;
+  return `<span class="badge-sm ${ok?'badge-green':'badge-amber'}">${ach.toFixed(1)}%</span>`;
+}
+
+function renderMonthlyTable() {
+  const fm = filledMonths();
+  const tbl = document.getElementById('tbl-monthly');
+  if (fm.length === 0) { tbl.innerHTML = '<tr><td colspan="20" style="padding:20px; color:var(--color-text-tertiary); text-align:center;">데이터 없음</td></tr>'; return; }
+  let html = '<thead><tr><th rowspan="2" style="text-align:left;">월</th>';
+  TEAMS.forEach(t => { html += `<th colspan="4" class="team-hd">${t} (목표 ${TARGETS[t]}%)</th>`; });
+  html += '</tr><tr>';
+  TEAMS.forEach(() => { html += '<th>검증</th><th>양호</th><th>정확도</th><th>달성율</th>'; });
+  html += '</tr></thead><tbody>';
+  fm.forEach(i => {
+    html += `<tr><td class="month">${MONTHS[i]}</td>`;
+    TEAMS.forEach(t => {
+      const d = data[t][i];
+      if (!d) { html += '<td>—</td><td>—</td><td>—</td><td>—</td>'; return; }
+      const a = acc(t,i);
+      const ach = a !== null ? (a / TARGETS[t] * 100) : null;
+      const aClass = a !== null && a >= TARGETS[t] ? 'good' : 'warn';
+      html += `<td>${d.verified}건</td><td>${d.good}건</td><td class="${aClass}">${a !== null ? a.toFixed(1)+'%' : '—'}</td><td>${badgeAch(ach)}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  tbl.innerHTML = html;
+}
+
+function renderCumulTable() {
+  const fm = filledMonths();
+  const tbl = document.getElementById('tbl-cumul');
+  if (fm.length === 0) { tbl.innerHTML = '<tr><td colspan="20" style="padding:20px; color:var(--color-text-tertiary); text-align:center;">데이터 없음</td></tr>'; return; }
+  let html = '<thead><tr><th rowspan="2" style="text-align:left;">월</th>';
+  TEAMS.forEach(t => { html += `<th colspan="4" class="team-hd">${t} (목표 ${TARGETS[t]}%)</th>`; });
+  html += '</tr><tr>';
+  TEAMS.forEach(() => { html += '<th>누적검증</th><th>누적양호</th><th>정확도</th><th>달성율</th>'; });
+  html += '</tr></thead><tbody>';
+  fm.forEach(i => {
+    html += `<tr><td class="month">${MONTHS[i]}</td>`;
+    TEAMS.forEach(t => {
+      let tv = 0, tg = 0;
+      for (let j = 0; j <= i; j++) { const d = data[t][j]; if (d) { tv += d.verified; tg += d.good; } }
+      if (tv === 0) { html += '<td>—</td><td>—</td><td>—</td><td>—</td>'; return; }
+      const a = (tg/tv)*100;
+      const ach = (a / TARGETS[t]) * 100;
+      const aClass = a >= TARGETS[t] ? 'good' : 'warn';
+      html += `<td>${tv}건</td><td>${tg}건</td><td class="${aClass}">${a.toFixed(1)}%</td><td>${badgeAch(ach)}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  tbl.innerHTML = html;
+}
+
+function renderAll() {
+  renderKPI();
+  renderMonthlyChart();
+  renderCumulChart();
+  renderMonthlyTable();
+  renderCumulTable();
+}
+
+function switchTab(tab, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-monthly').style.display = tab === 'monthly' ? '' : 'none';
+  document.getElementById('tab-cumul').style.display = tab === 'cumul' ? '' : 'none';
+  if (tab === 'cumul') { setTimeout(renderCumulChart, 50); }
+  else { setTimeout(renderMonthlyChart, 50); }
+}
+
+function openModal() {
+  const rows = document.getElementById('modal-team-rows');
+  const mi = parseInt(document.getElementById('inp-month').value);
+  rows.innerHTML = TEAMS.map(t => {
+    const d = data[t][mi];
+    return `<div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px; margin-bottom:6px; align-items:center;">
+      <div style="font-size:13px; font-weight:500; color:var(--color-text-primary); text-align:center;">${t}</div>
+      <input type="number" id="v-${t}" value="${d?d.verified:''}" placeholder="건수" min="0">
+      <input type="number" id="g-${t}" value="${d?d.good:''}" placeholder="건수" min="0">
+      <input type="number" id="tgt-${t}" value="${TARGETS[t]}" min="0" max="100" step="0.1">
+    </div>`;
+  }).join('');
+  document.getElementById('inp-month').addEventListener('change', function() {
+    const mi2 = parseInt(this.value);
+    TEAMS.forEach(t => {
+      const d = data[t][mi2];
+      document.getElementById('v-'+t).value = d ? d.verified : '';
+      document.getElementById('g-'+t).value = d ? d.good : '';
+    });
+  });
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+function saveModal() {
+  const mi = parseInt(document.getElementById('inp-month').value);
+  TEAMS.forEach(t => {
+    const v = parseFloat(document.getElementById('v-'+t).value);
+    const g = parseFloat(document.getElementById('g-'+t).value);
+    const tgt = parseFloat(document.getElementById('tgt-'+t).value);
+    if (!isNaN(v) && !isNaN(g) && v > 0) {
+      data[t][mi] = { verified: v, good: g };
+      TARGETS[t] = isNaN(tgt) ? TARGETS[t] : tgt;
+    }
+  });
+  closeModal();
+  renderAll();
+}
+
+renderAll();
+</script>
