@@ -1,0 +1,242 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+.dash{padding:0 0 24px 0;}
+.hdr{background:#0C447C;padding:14px 24px;text-align:center;}
+.hdr-title{font-size:18px;font-weight:500;color:#fff;letter-spacing:0.03em;}
+.body{padding:16px 20px 0;}
+.sec-label{font-size:11px;font-weight:500;color:var(--color-text-secondary);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;}
+.kpi-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:18px;}
+.kpi{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:12px 14px;}
+.kpi-lbl{font-size:11px;color:var(--color-text-secondary);margin-bottom:5px;}
+.kpi-val{font-size:20px;font-weight:500;}
+.kpi-sub{font-size:11px;color:var(--color-text-tertiary);margin-top:3px;}
+.kpi-bar-bg{height:3px;background:var(--color-background-tertiary);border-radius:2px;margin-top:7px;}
+.kpi-bar{height:3px;border-radius:2px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px;}
+.card-title{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:10px;}
+.leg{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:11px;color:var(--color-text-secondary);}
+.leg span{display:flex;align-items:center;gap:4px;}
+.leg-sq{width:10px;height:10px;border-radius:2px;display:inline-block;}
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;}
+th{background:var(--color-background-secondary);color:var(--color-text-secondary);font-weight:500;padding:6px 5px;text-align:center;border-bottom:0.5px solid var(--color-border-tertiary);white-space:nowrap;}
+td{padding:5px 5px;text-align:center;border-bottom:0.5px solid var(--color-border-tertiary);color:var(--color-text-primary);white-space:nowrap;}
+td.month{text-align:left;font-weight:500;color:var(--color-text-secondary);padding-left:8px;}
+tr:last-child td{border-bottom:none;}
+.good{color:#0F6E56;font-weight:500;}
+.warn{color:#854F0B;font-weight:500;}
+.muted{color:var(--color-text-tertiary);}
+.badge{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:500;}
+.b-g{background:#EAF3DE;color:#3B6D11;}
+.b-a{background:#FAEEDA;color:#854F0B;}
+.team-span{background:var(--color-background-secondary);font-weight:500;font-size:11px;}
+input.num-inp{width:44px;padding:2px 4px;font-size:11px;border:0.5px solid var(--color-border-secondary);border-radius:4px;background:var(--color-background-primary);color:var(--color-text-primary);text-align:center;}
+</style>
+
+<div class="dash">
+<h2 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">팀별 재고정확도 현황 대시보드</h2>
+<div class="hdr"><span class="hdr-title">팀별 재고정확도 현황</span></div>
+
+<div class="body">
+<div class="sec-label" style="margin-top:14px;">KPI — 누적 재고정확도</div>
+<div class="kpi-grid" id="kpi-grid"></div>
+
+<div class="row2">
+  <div class="card">
+    <div class="card-title">월별 팀별 재고정확도 추이</div>
+    <div style="position:relative;height:220px;"><canvas id="chM" role="img" aria-label="월별 팀별 재고정확도 추이">SM/CM/DM/MD 팀의 1~12월 재고정확도</canvas></div>
+    <div class="leg" id="legM"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">누적 팀별 재고정확도 추이</div>
+    <div style="position:relative;height:220px;"><canvas id="chC" role="img" aria-label="누적 팀별 재고정확도 추이">SM/CM/DM/MD 팀의 1~12월 누적 재고정확도</canvas></div>
+    <div class="leg" id="legC"></div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-title">월별 팀별 상세 현황 <span style="font-size:11px;font-weight:400;color:var(--color-text-secondary);">— 검증/양호 품목수 직접 입력 가능 · 정확도·달성율 자동 계산</span></div>
+  <div class="tbl-wrap"><table id="tbl-m"></table></div>
+</div>
+
+<div class="card">
+  <div class="card-title">누적 팀별 상세 현황</div>
+  <div class="tbl-wrap"><table id="tbl-c"></table></div>
+</div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const TEAMS=['SM','CM','DM','MD'];
+const TARGETS={SM:98.8,CM:98.1,DM:96.2,MD:92.2};
+const COLORS={SM:'#185FA5',CM:'#1D9E75',DM:'#D85A30',MD:'#7F77DD'};
+const DASHES={SM:[],CM:[],DM:[5,3],MD:[2,2]};
+const MONTHS=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+let data={
+  SM:[{v:19,g:19},{v:15,g:15},{v:20,g:20},null,null,null,null,null,null,null,null,null],
+  CM:[{v:19,g:19},{v:17,g:15},{v:22,g:22},null,null,null,null,null,null,null,null,null],
+  DM:[{v:19,g:19},{v:6,g:6},{v:20,g:20},null,null,null,null,null,null,null,null,null],
+  MD:[{v:20,g:19},{v:18,g:18},{v:22,g:22},null,null,null,null,null,null,null,null,null]
+};
+
+function mAcc(t,i){const d=data[t][i];if(!d||!d.v)return null;return d.g/d.v*100;}
+
+function cAcc(t,i){
+  let tv=0,tg=0,hasAny=false;
+  for(let j=0;j<=i;j++){const d=data[t][j];if(d&&d.v){tv+=d.v;tg+=d.g;hasAny=true;}}
+  return hasAny&&tv?tg/tv*100:null;
+}
+
+function lastFilledIdx(){
+  let l=-1;
+  for(let i=0;i<12;i++){if(TEAMS.some(t=>data[t][i]))l=i;else break;}
+  return l;
+}
+
+function renderKPI(){
+  const lm=lastFilledIdx();
+  let html='';
+  TEAMS.forEach(t=>{
+    const ca=lm>=0?cAcc(t,lm):null;
+    const tgt=TARGETS[t];
+    const ok=ca!==null&&ca>=tgt;
+    const pct=ca?Math.min(ca/tgt*100,100):0;
+    html+=`<div class="kpi"><div class="kpi-lbl">${t}생산</div>
+    <div class="kpi-val" style="color:${ok?'#0F6E56':'#D85A30'}">${ca!==null?ca.toFixed(1)+'%':'—'}</div>
+    <div class="kpi-sub">목표 ${tgt}% · ${ca!==null?(ca/tgt*100).toFixed(1)+'%':'—'}</div>
+    <div class="kpi-bar-bg"><div class="kpi-bar" style="width:${pct}%;background:${ok?'#1D9E75':'#D85A30'}"></div></div></div>`;
+  });
+  const atv=TEAMS.reduce((s,t)=>{for(let i=0;i<=lm;i++){const d=data[t][i];if(d){s.v+=d.v;s.g+=d.g;}}return s;},{v:0,g:0});
+  const ca=atv.v?atv.g/atv.v*100:null;
+  const avgT=TEAMS.reduce((s,t)=>s+TARGETS[t],0)/TEAMS.length;
+  const pct=ca?Math.min(ca/avgT*100,100):0;
+  html+=`<div class="kpi" style="border-color:#0C447C;"><div class="kpi-lbl">전사 합산</div>
+  <div class="kpi-val" style="color:#0C447C">${ca!==null?ca.toFixed(1)+'%':'—'}</div>
+  <div class="kpi-sub">평균목표 ${avgT.toFixed(1)}% · ${ca!==null?(ca/avgT*100).toFixed(1)+'%':'—'}</div>
+  <div class="kpi-bar-bg"><div class="kpi-bar" style="width:${pct}%;background:#185FA5"></div></div></div>`;
+  document.getElementById('kpi-grid').innerHTML=html;
+}
+
+let chMInst=null,chCInst=null;
+
+function mkMonthlyDatasets(){
+  return TEAMS.map(t=>({
+    label:t,
+    data:MONTHS.map((_,i)=>{const a=mAcc(t,i);return a!==null?parseFloat(a.toFixed(2)):null;}),
+    borderColor:COLORS[t],backgroundColor:COLORS[t],
+    pointRadius:MONTHS.map((_,i)=>mAcc(t,i)!==null?4:0),
+    tension:0.3,fill:false,borderDash:DASHES[t],spanGaps:false
+  }));
+}
+
+function mkCumulDatasets(){
+  const lm=lastFilledIdx();
+  return TEAMS.map(t=>({
+    label:t,
+    data:MONTHS.map((_,i)=>{
+      if(i>lm)return null;
+      const a=cAcc(t,i);
+      return a!==null?parseFloat(a.toFixed(2)):null;
+    }),
+    borderColor:COLORS[t],backgroundColor:COLORS[t],
+    pointRadius:MONTHS.map((_,i)=>{
+      if(i>lm)return 0;
+      return cAcc(t,i)!==null?4:0;
+    }),
+    tension:0.3,fill:false,borderDash:DASHES[t],spanGaps:false
+  }));
+}
+
+function mkOpts(){
+  return{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y!==null?c.parsed.y.toFixed(1)+'%':'—'}`}}},
+    scales:{
+      y:{min:85,max:110,ticks:{callback:v=>v+'%',font:{size:10}},grid:{color:'rgba(128,128,128,0.1)'}},
+      x:{ticks:{font:{size:10},autoSkip:false,maxRotation:0}}
+    }};
+}
+
+function renderCharts(){
+  if(chMInst)chMInst.destroy();
+  if(chCInst)chCInst.destroy();
+  chMInst=new Chart(document.getElementById('chM'),{type:'line',data:{labels:MONTHS,datasets:mkMonthlyDatasets()},options:mkOpts()});
+  chCInst=new Chart(document.getElementById('chC'),{type:'line',data:{labels:MONTHS,datasets:mkCumulDatasets()},options:mkOpts()});
+  const legHtml=TEAMS.map(t=>`<span><span class="leg-sq" style="background:${COLORS[t]}"></span>${t} (목표${TARGETS[t]}%)</span>`).join('');
+  document.getElementById('legM').innerHTML=legHtml;
+  document.getElementById('legC').innerHTML=TEAMS.map(t=>`<span><span class="leg-sq" style="background:${COLORS[t]}"></span>${t}</span>`).join('');
+}
+
+function onInput(t,i){
+  const v=parseFloat(document.getElementById(`v-${t}-${i}`).value);
+  const g=parseFloat(document.getElementById(`g-${t}-${i}`).value);
+  if(!isNaN(v)&&v>0&&!isNaN(g)&&g>=0){data[t][i]={v,g};}
+  else{data[t][i]=null;}
+  renderAll();
+}
+
+function renderMonthlyTable(){
+  const tbl=document.getElementById('tbl-m');
+  let h=`<colgroup><col style="width:36px">`;
+  TEAMS.forEach(()=>{h+=`<col style="width:50px"><col style="width:50px"><col style="width:58px"><col style="width:54px">`;});
+  h+=`</colgroup><thead><tr><th rowspan="2" style="text-align:left;padding-left:8px;">월</th>`;
+  TEAMS.forEach(t=>{h+=`<th colspan="4" class="team-span">${t} (목표 ${TARGETS[t]}%)</th>`;});
+  h+=`</tr><tr>`;
+  TEAMS.forEach(()=>{h+=`<th>검증</th><th>양호</th><th>정확도</th><th>달성율</th>`;});
+  h+=`</tr></thead><tbody>`;
+  for(let i=0;i<12;i++){
+    h+=`<tr><td class="month">${MONTHS[i]}</td>`;
+    TEAMS.forEach(t=>{
+      const d=data[t][i];
+      const a=mAcc(t,i);
+      const ach=a!==null?(a/TARGETS[t]*100):null;
+      const ac=a!==null&&a>=TARGETS[t]?'good':'warn';
+      h+=`<td><input class="num-inp" id="v-${t}-${i}" value="${d?d.v:''}" placeholder="0" oninput="onInput('${t}',${i})"></td>`;
+      h+=`<td><input class="num-inp" id="g-${t}-${i}" value="${d?d.g:''}" placeholder="0" oninput="onInput('${t}',${i})"></td>`;
+      h+=`<td class="${a!==null?ac:'muted'}">${a!==null?a.toFixed(1)+'%':''}</td>`;
+      h+=`<td>${ach!==null?`<span class="badge ${ach>=100?'b-g':'b-a'}">${ach.toFixed(1)}%</span>`:''}</td>`;
+    });
+    h+=`</tr>`;
+  }
+  tbl.innerHTML=h;
+}
+
+function renderCumulTable(){
+  const tbl=document.getElementById('tbl-c');
+  let h=`<colgroup><col style="width:36px">`;
+  TEAMS.forEach(()=>{h+=`<col style="width:50px"><col style="width:50px"><col style="width:58px"><col style="width:54px">`;});
+  h+=`</colgroup><thead><tr><th rowspan="2" style="text-align:left;padding-left:8px;">월</th>`;
+  TEAMS.forEach(t=>{h+=`<th colspan="4" class="team-span">${t} (목표 ${TARGETS[t]}%)</th>`;});
+  h+=`</tr><tr>`;
+  TEAMS.forEach(()=>{h+=`<th>누적검증</th><th>누적양호</th><th>정확도</th><th>달성율</th>`;});
+  h+=`</tr></thead><tbody>`;
+  for(let i=0;i<12;i++){
+    h+=`<tr><td class="month">${MONTHS[i]}</td>`;
+    TEAMS.forEach(t=>{
+      let tv=0,tg=0,hasAny=false;
+      for(let j=0;j<=i;j++){const d=data[t][j];if(d&&d.v){tv+=d.v;tg+=d.g;hasAny=true;}}
+      if(!hasAny){h+=`<td></td><td></td><td></td><td></td>`;return;}
+      const a=tg/tv*100;
+      const ach=a/TARGETS[t]*100;
+      const ac=a>=TARGETS[t]?'good':'warn';
+      h+=`<td>${tv}건</td><td>${tg}건</td>`;
+      h+=`<td class="${ac}">${a.toFixed(1)}%</td>`;
+      h+=`<td><span class="badge ${ach>=100?'b-g':'b-a'}">${ach.toFixed(1)}%</span></td>`;
+    });
+    h+=`</tr>`;
+  }
+  tbl.innerHTML=h;
+}
+
+function renderAll(){
+  renderKPI();
+  renderCharts();
+  renderMonthlyTable();
+  renderCumulTable();
+}
+
+renderAll();
+</script>
